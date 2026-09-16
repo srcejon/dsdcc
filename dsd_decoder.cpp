@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <algorithm>
+#include <cstring>
 
 #include "timeutil.h"
 #include "dsd_sync.h"
@@ -43,6 +44,8 @@ DSDDecoder::DSDDecoder() :
         m_lastSyncType(DSDSyncNone),
         m_signalFormat(signalFormatNone)
 {
+    std::memset(ambe_fr, 0, sizeof(ambe_fr));
+    std::memset(imbe_fr, 0, sizeof(imbe_fr));
     resetFrameSync();
     noCarrier();
     m_squelchTimeoutCount = 0;
