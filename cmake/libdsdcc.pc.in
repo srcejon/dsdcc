@@ -6,6 +6,7 @@ includedir=${prefix}/include
 Name: dsdcc library
 Description: Digital Speech Decoder (DSD) rewritten as a C++ library
 Version: @VERSION@
-Cflags: -I${includedir}/
+Cflags: -I${includedir}/ @DSDCC_PC_MBELIB_DEFINITION@
+Requires: @DSDCC_PC_REQUIRES@
 Libs: -L${libdir} -ldsdcc
 Libs.private: @DSDCC_PC_LIBS@

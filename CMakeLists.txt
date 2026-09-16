@@ -10,6 +10,12 @@ set(VERSION_STRING ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION})
 set(VERSION ${VERSION_STRING})
 
 option(BUILD_TOOL "Build dsdccx tool" ON)
+option(USE_MBELIB "Build with a software MBE decoder" OFF)
+set(MBELIB_PROVIDER "classic" CACHE STRING "MBE decoder implementation (classic or neo)")
+set_property(CACHE MBELIB_PROVIDER PROPERTY STRINGS classic neo)
+if (NOT MBELIB_PROVIDER STREQUAL "classic" AND NOT MBELIB_PROVIDER STREQUAL "neo")
+    message(FATAL_ERROR "MBELIB_PROVIDER must be classic or neo")
+endif()
 
 # use c++11
 set(CMAKE_CXX_STANDARD 11)
@@ -54,9 +60,21 @@ else()
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-if (USE_MBELIB)
-    find_package(LibMbe REQUIRED)
-    add_definitions(-DDSD_USE_MBELIB)
+if (BUILD_DEBIAN AND MBELIB_PROVIDER STREQUAL "classic")
+    # Preserve the existing Debian build, which builds classic mbelib from LIBMBELIBSRC.
+    set(DSD_MBELIB_ENABLED ON)
+else()
+    set(DSD_MBELIB_ENABLED ${USE_MBELIB})
+endif()
+
+if (DSD_MBELIB_ENABLED)
+    if (MBELIB_PROVIDER STREQUAL "neo")
+        find_package(LibMbeNeo REQUIRED)
+        set(DSDCC_PC_REQUIRES "${LIBMBE_NEO_PKGCONFIG_REQUIRES}")
+        set(DSDCC_PC_MBELIB_DEFINITION "-DDSDCC_MBELIB_NEO")
+    elseif (NOT BUILD_DEBIAN)
+        find_package(LibMbe REQUIRED)
+    endif()
 endif()
 
 find_package(SerialDV)
@@ -132,7 +150,7 @@ set(dsdcc_HEADERS
     export.h
 )
 
-if (USE_MBELIB)
+if (DSD_MBELIB_ENABLED)
     set(dsdcc_HEADERS
         ${dsdcc_HEADERS}
         dsd_mbelib.h
@@ -144,7 +162,7 @@ include_directories(
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-if (USE_MBELIB)
+if (DSD_MBELIB_ENABLED AND MBELIB_PROVIDER STREQUAL "classic" AND NOT BUILD_DEBIAN)
     include_directories(
         ${LIBMBE_INCLUDE_DIR}
     )
@@ -161,23 +179,30 @@ add_library(dsdcc SHARED
 )
 set_target_properties(dsdcc PROPERTIES VERSION ${VERSION} SOVERSION ${MAJOR_VERSION})
 
-if (USE_MBELIB)
-    target_link_libraries(dsdcc ${LIBMBE_LIBRARY})
+if (DSD_MBELIB_ENABLED)
+    target_compile_definitions(dsdcc PRIVATE DSD_USE_MBELIB)
+    if (MBELIB_PROVIDER STREQUAL "neo")
+        target_compile_definitions(dsdcc PUBLIC DSDCC_MBELIB_NEO)
+        target_link_libraries(dsdcc PUBLIC LibMbeNeo::LibMbeNeo)
+    elseif (NOT BUILD_DEBIAN)
+        target_link_libraries(dsdcc PRIVATE ${LIBMBE_LIBRARY})
+    endif()
 endif()
 
 if (LIBSERIALDV_FOUND)
-    target_link_libraries(dsdcc ${LIBSERIALDV_LIBRARY})
+    target_link_libraries(dsdcc PRIVATE ${LIBSERIALDV_LIBRARY})
 endif()
 
 if (BUILD_DEBIAN)
-    add_subdirectory(mbelib)
     add_subdirectory(serialdv)
     add_definitions(-DDSD_USE_SERIALDV)
     include_directories(${LIBSERIALDVSRC})
-    target_link_libraries(dsdcc serialdv)
-    add_definitions(-DDSD_USE_MBELIB)
-    include_directories(${LIBMBELIBSRC})
-    target_link_libraries(dsdcc mbelib)
+    target_link_libraries(dsdcc PRIVATE serialdv)
+    if (MBELIB_PROVIDER STREQUAL "classic")
+        add_subdirectory(mbelib)
+        include_directories(${LIBMBELIBSRC})
+        target_link_libraries(dsdcc PRIVATE mbelib)
+    endif()
 endif()
 
 if(BUILD_TOOL)

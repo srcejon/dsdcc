@@ -10,22 +10,24 @@ It is rewritten along the following lines:
   - Works by polling to get possible new MBE or audio samples after new samples have been pushed to the decoder
   - Option to output audio samples as L+R (stereo) samples with L=R as this may facilitate integration
   - A binary that uses this library is provided for integration with other commands that run in a shell. So basically it works only with input / output files possibly being `stdin` / `stdout` to be integrated in a pipe command. There is no direct usage of audio devices nor fancy side reading from or writing to `.wav` or `.mbe` files.
-  - `mbelib` usage is optional at compile time. Without `mbelib` only the raw MBE samples can be extracted to be processed outside of DSDcc with the help of a hardware dongle for example thus lifting the possible copyright violations (See next)
+  - Software MBE decoding is optional at compile time. The build can use classic `mbelib` or `mbelib-neo`. Without either library, raw MBE samples can be extracted for processing outside DSDcc with a hardware dongle, for example (see next).
 
 These points have been retained from the original:
 
   - The decoding methods
   - Minimal changes to the options and state structures
   - Input as S16LE samples at a fixed rate of 48kS/s
-  - Audio output as S16LE samples at 8kS/s rate directly out of `mbelib` or upsampled to 48kS/s
+  - Audio output as S16LE samples at 8kS/s rate from the selected software MBE decoder, or upsampled to 48kS/s
 
-<h1>Possible copyright issues with mbelib</h1>
+<h1>Possible patent and licensing issues with software MBE decoders</h1>
 
 While DSDcc is intended to be patent-free, `mbelib` that it uses describes functions that may be covered by one or more U.S. patents owned by DVSI Inc. The source code itself should not be infringing as it merely describes possible methods of implementation. Compiling or using `mbelib` may infringe on patents rights in your jurisdiction and/or require licensing. It is unknown if DVSI will sell licenses for software that uses `mbelib`.
 
+`mbelib-neo` carries its own [patent notice and GPL-2.0-or-later license](https://github.com/arancormonk/mbelib-neo#patent-notice). Review its terms when choosing that provider.
+
 If you are not comfortable with this just do not compile with `mbelib` support and you will still be able to extract the MBE frames and process them outside DSDcc with the help of a hardware dongle for example (e.g. ThumbDV USB dongle). The provided binary `dsdccx` can use such a dongle with [SerialDV](https://github.com/f4exb/serialDV). See the Building section for details.
 
-If you still want `mbelib` support you have to use the `-DUSE_MBELIB=ON` directive on the `cmake` command line and of course you need to have `mbelib` installed in your system.
+If you want software MBE decoding, use `-DUSE_MBELIB=ON`. Classic `mbelib` is the default provider; select `mbelib-neo` with `-DMBELIB_PROVIDER=neo`. Only one provider is linked into a build. See each library's license and patent notice before distributing binaries.
 
 <h1>Supported formats</h1>
 
@@ -49,11 +51,13 @@ Next we may like to add NXDN exploiting similarities with the already implemente
 
 As usual with projects based on cmake create a `build` directory at the root of the cloned repository and cd into it.
 
-For `mbelib`support you will need to specify the `-DUSE_MBELIB=ON` directive on the `cmake` command line and you will need to have [mbelib](https://github.com/szechyjs/mbelib) installed in your system. If you use custom installation paths like `/opt/install/mbelib` for example you will need to add the include and library locations to the cmake command line with these directives: `-DLIBMBE_INCLUDE_DIR=/opt/install/mbelib/include -DLIBMBE_LIBRARY=/opt/install/mbelib/lib/libmbe.so`
-
 For DVSI AMBE3000 serial device support (e.g. ThumbDV) in the binary `dsdccx` you will need to install [SerialDV](https://github.com/f4exb/serialDV). Please refer to the `Readme.md` in this package to install SerialDV. If you have SerialDV installed in a custom directory say `/opt/install/serialdv` you will need to add the include and library locations to the cmake command line with these directives: `-DLIBSERIALDV_INCLUDE_DIR=/opt/install/serialdv/include/serialdv -DLIBSERIALDV_LIBRARY=/opt/install/serialdv/lib/libserialdv.so`
 
-So the full cmake command with a custom installation directory and `mbelib`support will look like: `cmake -Wno-dev -DCMAKE_INSTALL_PREFIX=/opt/install/dsdcc -DUSE_MBELIB=ON -DLIBMBE_INCLUDE_DIR=/opt/install/mbelib/include -DLIBMBE_LIBRARY=/opt/install/mbelib/lib/libmbe.so ..`
+So the full cmake command with a custom installation directory and classic `mbelib` support will look like: `cmake -Wno-dev -DCMAKE_INSTALL_PREFIX=/opt/install/dsdcc -DUSE_MBELIB=ON -DLIBMBE_INCLUDE_DIR=/opt/install/mbelib/include -DLIBMBE_LIBRARY=/opt/install/mbelib/lib/libmbe.so ..`
+
+The corresponding mbelib-neo command is: `cmake -Wno-dev -DCMAKE_INSTALL_PREFIX=/opt/install/dsdcc -DUSE_MBELIB=ON -DMBELIB_PROVIDER=neo -DCMAKE_PREFIX_PATH=/opt/install/mbelib-neo ..`
+
+Alternatively, point CMake directly at built mbelib-neo headers and its static library with `-DLIBMBE_NEO_INCLUDE_DIR=/path/to/mbelib-neo/include -DLIBMBE_NEO_LIBRARY=/path/to/libmbe-neo.a`. On Windows, the `windows-neo` preset uses `C:/Users/jon/source/repos/mbelib-neo/include` and `C:/Users/jon/source/repos/mbelib-neo/build/dev-release/Release/mbe-neo-static.lib`; build mbelib-neo's `dev-release` preset in Release configuration first. The preset uses Visual Studio 2026 to match that static library's compiler. No mbelib-neo installation is needed. Run `cmake --preset windows-neo` and `cmake --build --preset windows-neo` from the DSDcc source directory.
 
 The full cmake command with a custom installation directory no `mbelib`support and SerialDV support for the binary will look like: `cmake -Wno-dev -DCMAKE_INSTALL_PREFIX=/opt/install/dsdcc -DLIBSERIALDV_INCLUDE_DIR=/opt/install/serialdv/include/serialdv -DLIBSERIALDV_LIBRARY=/opt/install/serialdv/lib/libserialdv.so`
 
@@ -91,7 +95,7 @@ Since version 1.6 dsdccx has the capability of sending regularly the traffic sta
     - The `DSDOpts` object handles the options configuring the behaviour of the decoder
     - The `DSDState` object handles the run time data and data related to the current state of the decoder
   - The `DSDSymbol` object is responsible for symbol and dibit processing. It receives a new sample with its `pushSample()` method. It processes it and when enough samples have been receives it can produce a new symbol that it stores internally.
-  - The `DSDMBEDecoder` object is responsible of taking in AMBE frames and producing the final audio output at 8 kS/s. It is a wrapper around the `mbelib` library. It also handles the optional upsampling of audio to 48 kS/s.
+  - The `DSDMBEDecoder` object is responsible of taking in AMBE frames and producing the final audio output at 8 kS/s. It wraps the selected software MBE decoder and handles the optional upsampling of audio to 48 kS/s.
   - The objects specialized in the decoding of the various formats are:
     - The `DSDDMR` object is responsible of handling the processing of DMR frames. It uses the service of `DSDMBEDecoder` to produce the final audio output.
     - The `DSDdPMR` object is responsible of handling the processing of dPMR frames. It uses the service of `DSDMBEDecoder` to produce the final audio output.

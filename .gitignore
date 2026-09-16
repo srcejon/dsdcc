@@ -15,3 +15,15 @@ testfec/viterbi
 testfec/viterbi35
 testfec/crc
 testfec/pn
+/testfec/crc.exe
+/testfec/golay20.exe
+/testfec/golay23.exe
+/testfec/golay24.exe
+/testfec/hamming12.exe
+/testfec/hamming15.exe
+/testfec/hamming16.exe
+/testfec/hamming7.exe
+/testfec/pn.exe
+/testfec/qr.exe
+/testfec/viterbi.exe
+/testfec/viterbi35.exe

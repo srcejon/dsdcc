@@ -259,7 +259,11 @@ void DSDDecoder::setUvQuality(int uvquality)
         m_opts.uvquality = 64;
     }
 
+#ifdef DSDCC_MBELIB_NEO
+    m_dsdLogger.log("Unvoiced speech quality is controlled by mbelib-neo; this setting has no effect.\n");
+#else
     m_dsdLogger.log("Setting unvoice speech quality to %i waves per band.\n", m_opts.uvquality);
+#endif
 }
 
 void DSDDecoder::setUpsampling(int upsampling)

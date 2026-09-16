@@ -141,7 +141,7 @@ void usage()
     fprintf(stderr, "     3          slots #1+2 mixed\n");
     fprintf(stderr, "  -l            Disable matched filter\n");
     fprintf(stderr, "  -pu           Unmute Encrypted P25 - not supported\n");
-    fprintf(stderr, "  -u <num>      Unvoiced speech quality (default=3)\n");
+    fprintf(stderr, "  -u <num>      Unvoiced speech quality for classic mbelib (default=3)\n");
 #ifdef DSD_USE_SERIALDV
     fprintf(stderr, "  -D <device>   Use DVSI AMBE3000 based device for AMBE decoding (e.g. ThumbDV)\n");
     fprintf(stderr, "                You must have compiled with serialDV support (see Readme.md)\n");
